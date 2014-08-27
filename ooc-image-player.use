@@ -1,0 +1,6 @@
+Name: OOC Image Player
+Description: Module for loading and playing images as sequential frames
+SourcePath: source
+Requires: ooc-base, ooc-math, ooc-unit, ooc-draw, ooc-draw-gpu
+Imports: ImagePlayer, ImageRenderer
+Libs:
