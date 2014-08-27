@@ -20,6 +20,7 @@ use ooc-base
 import io/File
 import structs/ArrayList
 import os/Time
+import threading/Thread
 
 LoopMode: enum {
   mirror
@@ -29,7 +30,7 @@ LoopMode: enum {
 
 ImagePlayer: class {
   path: String
-  frameCallback: Func (RasterBgra)
+  frameCallback: Func (RasterBgra, This)
   imageBuffer: RasterBgra[]
   imageCount: UInt
   frameNumber: UInt = 0
@@ -37,13 +38,25 @@ ImagePlayer: class {
   loopMode: LoopMode
   increment: Bool = true
   fps: UInt
-  init: func (=path, frameCallback: Func (RasterBgra), fps := 30) {
+  playing: Bool = false
+  paused: Bool  = false
+  thread: Thread
+  mutex: Mutex
+  init: func (=path, frameCallback: Func (RasterBgra, This), fps := 30) {
     this frameCallback = frameCallback
     this loopMode = LoopMode mirror
     this fps = fps
-
+    thread = Thread new(|| this playLoop())
+    thread start()
+    mutex = Mutex new()
     this loadImages()
-    this play()
+  }
+  play: func (loopMode: LoopMode){
+    mutex lock()
+    this playing = true
+    this loopMode = loopMode
+    this reset()
+    mutex unlock()
   }
   sortFilenames: func (strings: ArrayList<String>) {
     //FIXME: Couldn't get it to work with ArrayList sort() so using this temporarily
@@ -75,7 +88,7 @@ ImagePlayer: class {
     imageFilenames := directory getChildrenNames()
 
     this sortFilenames(imageFilenames)
-    this imageCount = imageFilenames size / 3
+    this imageCount = imageFilenames size
     imageBuffer = RasterImage[imageCount] new()
 
     for(i in 0..this imageCount) {
@@ -105,6 +118,7 @@ ImagePlayer: class {
       case LoopMode none =>
         this frameNumber += 1
         this frameIndex += 1
+        this playing = validFrameIndex(this frameIndex)
       case =>
         raise("Using invalid Loop Mode in Image Player")
     }
@@ -112,16 +126,26 @@ ImagePlayer: class {
   reset: func {
     this frameNumber = this frameIndex = 0
   }
-
   validFrameIndex: func (index: UInt) -> Bool {
     index >= 0 && index < this imageCount
   }
-  play: func {
-    while(validFrameIndex(frameIndex)) {
-      ("Sending frame nr: " + this frameNumber toString()) println()
-      this frameCallback(imageBuffer[frameIndex])
-      this updateFramenumber()
-      Time sleepMilli(1000 / this fps)
+  playLoop: func {
+    while(true) {
+      while(playing) {
+        this mutex lock()
+        //("Sending frame nr: " + this frameNumber toString()) println()
+        this frameCallback(imageBuffer[frameIndex], this)
+        this updateFramenumber()
+        this mutex unlock()
+        Time sleepMilli(1000 / this fps)
+      }
+
     }
+  }
+  stop: func {
+    this mutex lock()
+    this playing = false
+    this reset()
+    this mutex unlock()
   }
 }
