@@ -42,8 +42,8 @@ ImagePlayer: class {
   _paused: Bool  = false
   _thread: Thread
   _mutex: Mutex
-  init: func (=_path, _frameCallback: Func (RasterBgra, This), fps := 30) {
-    this _frameCallback = _frameCallback
+  init: func (=_path, frameCallback: Func (RasterBgra, This), fps := 30) {
+    this _frameCallback = frameCallback
     this _loopMode = LoopMode mirror
     this _fps = fps
     this _loadImages(this _path)

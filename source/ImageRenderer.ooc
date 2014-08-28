@@ -53,7 +53,8 @@ ImageRenderer: class {
         this _redraw = false
         this _mutex unlock()
       }
-      Time sleepMilli(800/30)
+      Time sleepMilli(100/30)
+
     }
   }
   draw: func (image: RasterBgra) {
