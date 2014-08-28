@@ -18,56 +18,55 @@ use ooc-math
 use ooc-base
 use ooc-draw-gpu
 import threading/Thread
+import os/Time
 
 ImageRenderer: class {
-  window: Window
-  gpuImage: GpuBgra
-  rasterImage: RasterBgra
-  redraw: Bool = false
-  renderThread: Thread
-  mutex: Mutex
-  windowSize: IntSize2D
+  _window: Window
+  _gpuImage: GpuBgra
+  _rasterImage: RasterBgra
+  _redraw: Bool = false
+  _renderThread: Thread
+  _mutex: Mutex
+  _windowSize: IntSize2D
 
-  init: func (=windowSize) {
-    this renderThread = Thread new(||
-      this renderLoop()
+  init: func (=_windowSize) {
+    this _renderThread = Thread new(||
+      this _renderLoop()
       )
   }
-
-  create: static func (windowSize: IntSize2D) -> This {
-    result := This new(windowSize)
-    result mutex = Mutex new()
-    result renderThread start()
-    result
-  }
-
-  renderLoop: func {
-    this window = Window create(this windowSize, "Video renderer")
-    if(this window == null)
+  _renderLoop: func {
+    this _window = Window create(this _windowSize, "Video renderer")
+    if(this _window == null)
       raise("Failed to create window")
     while(true) {
-      this mutex lock()
-      if(redraw) {
-        if(this gpuImage == null)
-          this gpuImage = GpuImage create(this rasterImage)
-        else if(this gpuImage size == this rasterImage size)
-          this gpuImage replace(this rasterImage)
+      if(this _redraw) {
+        this _mutex lock()
+        if(this _gpuImage == null)
+          this _gpuImage = GpuImage create(this _rasterImage)
+        else if(this _gpuImage size == this _rasterImage size)
+          this _gpuImage replace(this _rasterImage)
         else {
-          this gpuImage dispose()
-          this gpuImage = GpuImage create(this rasterImage)
+          this _gpuImage dispose()
+          this _gpuImage = GpuImage create(this _rasterImage)
         }
-      this window draw(this gpuImage)
-      redraw = false
+        this _window draw(this _gpuImage)
+        this _redraw = false
+        this _mutex unlock()
       }
-      this mutex unlock()
+      Time sleepMilli(800/30)
     }
   }
-
   draw: func (image: RasterBgra) {
-    this mutex lock()
-    this rasterImage = image
-    this redraw = true
-    this mutex unlock()
+    this _mutex lock()
+    this _rasterImage = image
+    this _redraw = true
+    this _mutex unlock()
+  }
+  create: static func (windowSize: IntSize2D) -> This {
+    result := This new(windowSize)
+    result _mutex = Mutex new()
+    result _renderThread start()
+    result
   }
 
 }
