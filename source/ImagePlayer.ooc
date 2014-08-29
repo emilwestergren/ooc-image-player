@@ -30,33 +30,24 @@ LoopMode: enum {
 
 ImagePlayer: class {
   _path: String
-  _frameCallback: Func (RasterBgra, This)
-  _imageBuffer: RasterBgra[]
+  _frameCallback: Func (RasterImage)
+  _imageBuffer: RasterImage[]
   _imageCount: UInt
   _frameNumber: UInt = 0
   _frameIndex: UInt = 0
   _loopMode: LoopMode
+  loopMode: LoopMode { get { this _loopMode } set (value) {this _loopMode = value} }
   _increment: Bool = true
   _fps: UInt
-  _playing: Bool = false
-  _paused: Bool  = false
-  _thread: Thread
-  _mutex: Mutex
-  init: func (=_path, frameCallback: Func (RasterBgra, This), fps := 30) {
+  _maxFrames: UInt = 10
+  init: func (=_path, frameCallback: Func (RasterImage), fps := 25) {
     this _frameCallback = frameCallback
     this _loopMode = LoopMode mirror
     this _fps = fps
     this _loadImages(this _path)
-    _mutex = _mutex new()
-    _thread = _thread new(|| this _playLoop())
-    _thread start()
   }
-  play: func (loopMode: LoopMode){
-    this _mutex lock()
-    this _playing = true
-    this _loopMode = loopMode
-    this _reset()
-    this _mutex unlock()
+  play: func {
+    this _playLoop()
   }
   _sortFilenames: func (strings: ArrayList<String>) {
     //FIXME: Couldn't get it to work with ArrayList sort() so using this temporarily
@@ -90,12 +81,12 @@ ImagePlayer: class {
     imageFilenames := directory getChildrenNames()
 
     this _sortFilenames(imageFilenames)
-    this _imageCount = imageFilenames size
+    this _imageCount = Int minimum(imageFilenames size, _maxFrames)
     _imageBuffer = RasterImage[_imageCount] new()
 
     for(i in 0..this _imageCount) {
       ("Loading "  + _path + imageFilenames[i]) println()
-      _imageBuffer[i] = RasterBgra open(_path + imageFilenames[i])
+      _imageBuffer[i] = RasterImage open(_path + imageFilenames[i])
     }
 
   }
@@ -121,7 +112,6 @@ ImagePlayer: class {
       case _loopMode none =>
         this _frameNumber += 1
         this _frameIndex += 1
-        this _playing = _valid_frameIndex(this _frameIndex)
       case =>
         raise("Using invalid Loop Mode in Image Player")
     }
@@ -129,26 +119,16 @@ ImagePlayer: class {
   _reset: func {
     this _frameNumber = this _frameIndex = 0
   }
-  _valid_frameIndex: func (index: UInt) -> Bool {
+  _validFrameIndex: func (index: UInt) -> Bool {
     index >= 0 && index < this _imageCount
   }
   _playLoop: func {
-    while(true) {
-      while(_playing) {
-        this _mutex lock()
-        //("Sending frame nr: " + this _frameNumber toString()) println()
-        this _frameCallback(_imageBuffer[_frameIndex], this)
-        this _updateFrameNumber()
-        this _mutex unlock()
-        Time sleepMilli(1000 / this _fps)
-      }
+    while(this _validFrameIndex(this _frameIndex)) {
+      //("Sending frame nr: " + this _frameNumber toString()) println()
+      this _frameCallback(_imageBuffer[_frameIndex])
+      this _updateFrameNumber()
       Time sleepMilli(1000 / this _fps)
     }
-  }
-  stop: func {
-    this _mutex lock()
-    this _playing = false
     this _reset()
-    this _mutex unlock()
   }
 }
