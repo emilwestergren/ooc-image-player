@@ -53,7 +53,7 @@ ImagePlayer: class {
     //FIXME: Couldn't get it to work with ArrayList sort() so using this temporarily
     greaterThan := func (s1: String, s2: String) -> Bool {
     minSize := Int minimum(s1 size, s2 size)
-    result = (s1 size == minSize)
+    result := (s1 size == minSize)
       for(i in 0..minSize) {
         if(s1[i] > s2[i]) {
           result = true
@@ -94,6 +94,8 @@ ImagePlayer: class {
       ("Loading "  + _path + imageFilenames[i]) println()
       _imageBuffer[i] = RasterImage open(_path + imageFilenames[i])
     }
+    if(this _imageCount == 0)
+      "Found no images to load in the specified folder" println()
 
   }
   _updateFrameNumber: func {
@@ -122,7 +124,7 @@ ImagePlayer: class {
     index >= 0 && index < this _imageCount
   }
   _playLoop: func {
-    while(this _validFrameIndex(this _frameIndex)) {
+    while(this _validFrameIndex(this _frameIndex) && this _imageCount > 0) {
       //("Sending frame nr: " + this _frameNumber toString() + "Index number: " + this _frameIndex toString()) println()
       this _frameCallback(_imageBuffer[_frameIndex])
       this _updateFrameNumber()
