@@ -37,9 +37,9 @@ ImagePlayer: class {
   _frameIndex: UInt = 0
   _loopMode: LoopMode
   loopMode: LoopMode { get { this _loopMode } set (value) {this _loopMode = value} }
-  _increment: Bool = true
+  _sign: Int = 1
   _fps: UInt
-  _maxFrames: UInt = 10
+  _maxFrames: UInt = 100
   init: func (=_path, frameCallback: Func (RasterImage), fps := 25) {
     this _frameCallback = frameCallback
     this _loopMode = LoopMode mirror
@@ -53,13 +53,18 @@ ImagePlayer: class {
     //FIXME: Couldn't get it to work with ArrayList sort() so using this temporarily
     greaterThan := func (s1: String, s2: String) -> Bool {
     minSize := Int minimum(s1 size, s2 size)
+    result = (s1 size == minSize)
       for(i in 0..minSize) {
-        if(s1[i] > s2[i])
-          return true
-        else if(s1[i] < s2[i])
-          return false
+        if(s1[i] > s2[i]) {
+          result = true
+          break
+        }
+        else if(s1[i] < s2[i]) {
+          result = false
+          break
+        }
       }
-      s1 size == minSize
+      result
     }
     inOrder := false
     while (!inOrder) {
@@ -75,6 +80,7 @@ ImagePlayer: class {
     }
   }
   _loadImages: func (path: String) {
+    ("Searching for files in path: " + path) println()
     directory := File new(path)
     if(!directory dir?())
       raise("Filepath for images must be a directory")
@@ -92,24 +98,17 @@ ImagePlayer: class {
   }
   _updateFrameNumber: func {
     match (this _loopMode) {
-      case _loopMode mirror =>
-        _frameNumber += 1
-        if(_increment) {
-          _frameIndex += 1
-          if(_frameIndex == _imageCount - 1) {
-            _increment = false
-          }
-        }
-        else {
-          _frameIndex -= 1
-          if(_frameIndex == 0) {
-            _increment = true
-          }
-        }
-      case _loopMode restart =>
+      case LoopMode mirror =>
+        this _frameNumber += 1
+        this _frameIndex += this _sign
+        if(this _frameIndex == this _imageCount - 1)
+          this _sign = -1
+        else if(this _frameIndex == 0)
+          this _sign = 1
+      case LoopMode restart =>
         this _frameNumber = (this _frameNumber + 1) % this _imageCount
         this _frameIndex = this _frameNumber
-      case _loopMode none =>
+      case LoopMode none =>
         this _frameNumber += 1
         this _frameIndex += 1
       case =>
@@ -124,7 +123,7 @@ ImagePlayer: class {
   }
   _playLoop: func {
     while(this _validFrameIndex(this _frameIndex)) {
-      //("Sending frame nr: " + this _frameNumber toString()) println()
+      //("Sending frame nr: " + this _frameNumber toString() + "Index number: " + this _frameIndex toString()) println()
       this _frameCallback(_imageBuffer[_frameIndex])
       this _updateFrameNumber()
       Time sleepMilli(1000 / this _fps)
